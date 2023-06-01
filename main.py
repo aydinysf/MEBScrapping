@@ -9,6 +9,6 @@ from schoolscraper import SchoolScraper
 if __name__ == '__main__':
     scraper = SchoolScraper()
     il_list = scraper.get_il_kodu_list()
-    ilce_list =scraper.get_ilce_list(1)
+    #ilce_list =scraper.get_ilce_list(1)
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

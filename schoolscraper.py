@@ -1,3 +1,5 @@
+import uuid
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -40,22 +42,64 @@ class SchoolScraper:
             iller.append(option)  # İl ismini iller listesine ekleme
 
         for i in range(1, 82, 1):
-            dal= DataAccess()
-            #setil =dal.setIl(ils[i], int(iller[i-1]))
-            self.get_ilce_list(iller[i-1])
+            dal = DataAccess()
+            plaka=int(iller[i - 1])
+            ilguid = uuid.uuid4()
+            if plaka >79:
+                setil = dal.setIl(ils[i], plaka, ilguid)
+                self.get_ilce_list(iller[i - 1], ilguid)
 
-    def get_ilce_list(self, ilid):
+    def get_ilce_list(self, ilid, ilguid):
 
         self.base_url = "https://www.meb.gov.tr/baglantilar/okullar/index.php?ILKODU=" + ilid
         response = self.session.post(self.base_url)
         soup = BeautifulSoup(response.content, 'html.parser')
         ilce_dropdown = soup.find('select', id='jumpMenu6')
-        ilce_list = [option['value'] for option in ilce_dropdown.find_all('option') if option['value']]
+        ilce_list = [option['value'].replace("ILCEKODU=", "") for option in ilce_dropdown.find_all('option') if
+                     option['value']]
+        ilce_kodu = []
+        ilce_adi = []
 
+        options = ilce_dropdown.find_all('option')
 
-    def get_okul_list(self, il, ilce):
-        response = self.session.post(self.base_url, data={'il': il, 'ilce': ilce})
+        for op in options:
+            id = op.text.strip()
+            ilce_adi.append(id)
+
+        for option in ilce_list:
+            ilce_kodu.append(option.replace("?ILKODU=" + ilid + "&", ""))  # İl ismini iller listesine ekleme
+
+        for i in range(0, len(ilce_list), 1):
+            dal = DataAccess()
+            ilceno = int(ilce_kodu[i])
+            if ilce_kodu[i] != '0':
+                guid = uuid.uuid4()
+                dal.setIlce(ilid,ilceno, ilce_adi[i], guid, ilguid)
+                self.get_okul_list(ilid, ilce_kodu[i], guid)
+
+    def get_okul_list(self, il, ilceid, guid):
+        if ilceid == '0':
+            return
+        self.base_url = "https://www.meb.gov.tr/baglantilar/okullar/index.php?ILKODU=" + il + "&ILCEKODU=" + ilceid
+        response = self.session.post(self.base_url)
         soup = BeautifulSoup(response.content, 'html.parser')
-        okul_table = soup.find('table', class_='okullar')
-        okul_list = [row.td.text.strip() for row in okul_table.find_all('tr')[1:]]
-        return okul_list
+
+        soupokul = soup.find('table', id='icerik-listesi')
+        okullinks = soupokul.find_all('a')
+        okullist = []
+        for op in okullinks:
+            okul = op.text.strip()
+            if okul != '':
+                okulstr = ""
+                boluk_okul = okul.split("-")
+                if len(boluk_okul) == 3:
+                    okulstr = boluk_okul[2]
+                if len(boluk_okul) == 2:
+                    okulstr = boluk_okul[1]
+                if len(boluk_okul) == 1:
+                    okulstr = boluk_okul[0]
+                okullist.append(okulstr)
+                dalokul = DataAccess()
+
+                guid_okul = uuid.uuid4()
+                dalokul.setOkul(il, ilceid, okulstr, guid, guid_okul)
